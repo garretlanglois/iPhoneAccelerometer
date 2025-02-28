@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Accelerometer } from "expo-sensors";
 import { LineChart } from "react-native-chart-kit";
-// @ts-ignore
+
 import * as fftjs from "fft-js";
 
 interface AccelerometerData {
@@ -28,7 +28,7 @@ export default function AccelerometerScreen() {
     ReturnType<typeof Accelerometer.addListener> | null
   >(null);
   const [isAvailable, setIsAvailable] = useState<boolean>(false);
-  const [updateInterval, setUpdateInterval] = useState<number>(100); // Start with 100ms as default
+  const [updateInterval, setUpdateInterval] = useState<number>(100);
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordedData, setRecordedData] = useState<AccelerometerData[]>([]);
   const [recordingTime, setRecordingTime] = useState<number>(0);
@@ -76,14 +76,14 @@ export default function AccelerometerScreen() {
 
   const _subscribe = () => {
     try {
-      // Unsubscribe first if already subscribed
+
       _unsubscribe();
       
-      // Set update interval
+
       Accelerometer.setUpdateInterval(updateInterval);
       setDebugInfo(prev => prev + `\nSet update interval to ${updateInterval}ms`);
 
-      // Subscribe to accelerometer updates
+
       const newSubscription = Accelerometer.addListener((accelerometerData) => {
         const now = Date.now();
         const timestampedData = {
@@ -91,18 +91,18 @@ export default function AccelerometerScreen() {
           timestamp: now,
         };
         
-        // Update the last update time
+
         const timeSinceLastUpdate = now - lastUpdateRef.current;
         lastUpdateRef.current = now;
         
-        // Only update UI occasionally to avoid performance issues
+
         setData(timestampedData);
         
-        // If recording, add data to collection
+
         if (isRecording) {
           dataCollectionRef.current.push(timestampedData);
           
-          // Update debug info occasionally
+
           if (dataCollectionRef.current.length % 10 === 0) {
             setDebugInfo(`Recording: ${dataCollectionRef.current.length} samples\nLast interval: ${timeSinceLastUpdate}ms`);
           }
@@ -147,33 +147,33 @@ export default function AccelerometerScreen() {
   }, []);
 
   const startRecording = () => {
-    // Reset data collection
+
     dataCollectionRef.current = [];
     setRecordedData([]);
     setFftResults(null);
     
-    // First unsubscribe if already subscribed
+
     if (subscription) {
       subscription.remove();
       setSubscription(null);
     }
     
-    // Set a small delay before subscribing again
+
     setTimeout(() => {
-      // Set update interval
+
       Accelerometer.setUpdateInterval(updateInterval);
       
-      // Create a new subscription specifically for recording
+
       const newSubscription = Accelerometer.addListener((accelerometerData) => {
         const timestampedData = {
           ...accelerometerData,
           timestamp: Date.now(),
         };
         
-        // Update UI data
+
         setData(timestampedData);
         
-        // Add to collection - this is the critical part
+
         dataCollectionRef.current.push(timestampedData);
         
         console.log(`Data point collected: ${dataCollectionRef.current.length}`);
@@ -183,7 +183,7 @@ export default function AccelerometerScreen() {
       setIsRecording(true);
       startTimeRef.current = Date.now();
       
-      // Set a timer to stop recording after 10 seconds
+
       recordingRef.current = setTimeout(() => {
         stopRecording();
       }, 10000);
@@ -201,14 +201,14 @@ export default function AccelerometerScreen() {
       recordingRef.current = null;
     }
     
-    // Log the data collection size before processing
+
     console.log(`Collection size before processing: ${dataCollectionRef.current.length}`);
     
-    // Make a copy of the collected data
+
     const collectedData = [...dataCollectionRef.current];
     console.log(`Collected ${collectedData.length} data points`);
     
-    // Process only if we have data
+
     if (collectedData.length > 0) {
       setRecordedData(collectedData);
       processData(collectedData);
@@ -223,32 +223,31 @@ export default function AccelerometerScreen() {
       );
     }
     
-    // Don't unsubscribe here, keep listening for UI updates
+
   };
   
 
-// Add this useEffect to your component
-// Update your recording timer useEffect to this:
+
 useEffect(() => {
   let interval: NodeJS.Timeout | null = null;
   
   if (isRecording && startTimeRef.current) {
-    // Make sure we update the UI more frequently
+
     interval = setInterval(() => {
       const elapsed = (Date.now() - startTimeRef.current!) / 1000;
       setRecordingTime(Math.min(elapsed, 10));
       
-      // Log the current count for debugging
+
       console.log(`Recording time: ${elapsed.toFixed(1)}s, Points: ${dataCollectionRef.current.length}`);
       
       if (elapsed >= 10) {
         clearInterval(interval!);
-        // Ensure we stop recording when timer reaches 10s
+
         if (isRecording) {
           stopRecording();
         }
       }
-    }, 100); // Update every 100ms for smoother UI
+    }, 100); 
   } else {
     setRecordingTime(0);
   }
@@ -264,7 +263,7 @@ const processData = (data: AccelerometerData[]) => {
   setIsProcessing(true);
   
   try {
-    // Ensure we have enough data points
+
     if (data.length < 4) {
       console.log("Not enough data points for FFT");
       setDebugInfo("Not enough data points for FFT");
@@ -272,7 +271,7 @@ const processData = (data: AccelerometerData[]) => {
       return;
     }
 
-    // Calculate sampling rate (samples per second)
+
     const firstTimestamp = data[0].timestamp || 0;
     const lastTimestamp = data[data.length - 1].timestamp || 0;
     const durationSeconds = (lastTimestamp - firstTimestamp) / 1000;
@@ -282,28 +281,28 @@ const processData = (data: AccelerometerData[]) => {
     console.log(`Effective sampling rate: ${samplingRate.toFixed(2)} Hz`);
     setDebugInfo(`Samples: ${data.length}\nDuration: ${durationSeconds.toFixed(2)}s\nRate: ${samplingRate.toFixed(2)} Hz`);
 
-    // Extract x, y, z components
+
     const xData = data.map((d) => d.x);
     const yData = data.map((d) => d.y);
     const zData = data.map((d) => d.z);
 
-    // Perform FFT on each axis
+
     const fftX = performFFT(xData);
     const fftY = performFFT(yData);
     const fftZ = performFFT(zData);
 
-    // Calculate frequency bins - use the actual FFT output length
+
     const frequencyBins = Array.from({ length: fftX.length }, (_, i) => 
       (i * samplingRate) / (fftX.length * 2)
     );
 
-    // Debug FFT results
+
     console.log("FFT X first 5 magnitudes:", fftX.slice(0, 5));
     console.log("FFT Y first 5 magnitudes:", fftY.slice(0, 5));
     console.log("FFT Z first 5 magnitudes:", fftZ.slice(0, 5));
     console.log("First 5 frequency bins:", frequencyBins.slice(0, 5));
 
-    // Check if all values are zero or very small
+ 
     const maxX = Math.max(...fftX);
     const maxY = Math.max(...fftY);
     const maxZ = Math.max(...fftZ);
@@ -328,39 +327,38 @@ const processData = (data: AccelerometerData[]) => {
 
 
 
-// Define types for the FFT library
+
 interface FFTLibrary {
   fft: (input: number[] | number[][]) => any;
 }
 
 const performFFT = (timeData: number[]) => {
   try {
-    // Log the input data
+
     console.log("FFT input data first 5 points:", timeData.slice(0, 5));
     
-    // Make sure we have a power of 2 length for the FFT
+
     const nextPow2 = Math.pow(2, Math.ceil(Math.log2(timeData.length)));
     let paddedData = [...timeData];
-    
-    // Pad with zeros if needed
+
     while (paddedData.length < nextPow2) {
       paddedData.push(0);
     }
     
-    // Apply a window function to reduce spectral leakage
+
     const windowedData = applyHannWindow(paddedData);
     
-    // Get the FFT function from the library
+
     const fftLibrary = fftjs as unknown as FFTLibrary;
     
-    // Try different input formats based on the library's requirements
+
     let fftResult;
     try {
-      // Try with array of [real, imaginary] pairs
+
       const phasors = windowedData.map(val => [val, 0]);
       fftResult = fftLibrary.fft(phasors);
     } catch (e) {
-      // If that fails, try with alternating real/imaginary values
+
       const alternating: number[] = [];
       for (let i = 0; i < windowedData.length; i++) {
         alternating.push(windowedData[i]); // Real
@@ -403,8 +401,6 @@ const performFFT = (timeData: number[]) => {
 
 
 
-
-// Improved Hann window function
 const applyHannWindow = (data: number[]) => {
   return data.map((value, index) => {
     const hannFactor = 0.5 * (1 - Math.cos((2 * Math.PI * index) / (data.length - 1)));
@@ -724,8 +720,7 @@ const applyHannWindow = (data: number[]) => {
   );
 }
 
-// Helper function to find dominant frequencies
-// Helper function to find dominant frequencies
+
 const getDominantFrequencies = (frequencies: number[], magnitudes: number[], count = 3) => {
   // Skip the DC component (index 0) and filter out invalid values
   const indexedMagnitudes = magnitudes.slice(1)
